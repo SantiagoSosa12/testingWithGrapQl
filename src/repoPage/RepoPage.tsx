@@ -1,42 +1,41 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useLazyQuery, useMutation, useApolloClient } from '@apollo/client';
 import { useState } from 'react';
-import { RepoData, SearchCriteria } from '../api/types';
-import { starRepo } from '../api/startRepo';
-import { getRepo } from '../api/getRepo';
+import { SearchCriteria } from '../api/types';
+import { STAR_REPO } from '../api/startRepo';
+import { GET_REPO } from '../api/getRepo';
 import { SearchRepoForm } from './SearchRepoForm';
 import FoundRepo from './FoundRepo';
 import StartRepoButton from './StartRepoButton';
 
 const RepoPage = () => {
   const [searchCriteria, setSearchCriteria] = useState<SearchCriteria | undefined>();
-  const { data } = useQuery({
-    queryKey: ['repo', searchCriteria],
-    queryFn: () => getRepo(searchCriteria as SearchCriteria),
-    enabled: searchCriteria !== undefined,
-  });
-  const queryClient = useQueryClient();
-  const { mutate } = useMutation({
-    mutationFn: starRepo,
-    onSuccess: () => {
-      queryClient.setQueryData<RepoData>(['repo', searchCriteria], (repo) => {
-        if (repo === undefined) {
-          return undefined;
-        }
-        return {
-          ...repo,
-          viewerHasStarred: true,
-        };
+  const [getRepo, { data }] = useLazyQuery(GET_REPO);
+  const queryClient = useApolloClient();
+  const [startRepo] = useMutation(STAR_REPO, {
+    onCompleted: () => {
+      queryClient.cache.writeQuery({
+        query: GET_REPO,
+        data: {
+          repository: {
+            ...data.repository,
+            viewerHasStarred: true,
+          },
+        },
+        variables: searchCriteria,
       });
     },
   });
 
   function handleSearch(search: SearchCriteria) {
+    getRepo({
+      variables: { ...search },
+    });
     setSearchCriteria(search);
   }
 
   function handleStarClick() {
     if (data) {
-      mutate(data.repository.id);
+      startRepo({ variables: { repoId: data.repository.id } });
     }
   }
 
