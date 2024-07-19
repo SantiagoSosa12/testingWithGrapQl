@@ -11,3 +11,15 @@ export const STAR_REPO = gql`
     }
   }
 `;
+
+export const UNSTAR_REPO = gql`
+  mutation ($repoId: ID!) {
+    removeStar(input: { starrableId: $repoId }) {
+      starrable {
+        stargazers {
+          totalCount
+        }
+      }
+    }
+  }
+`;
